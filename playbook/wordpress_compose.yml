@@ -1,0 +1,90 @@
+---
+- name: Wordpress Container Deployment
+  hosts: apache
+  vars_files:
+    - vars/compose_vars.yml
+    - vars/deployment_vars.yml
+    - "{{ deployment_log }}"
+  gather_facts: false
+#  become: true
+
+  tasks:
+
+    - name: Wait for ssh
+      ansible.builtin.wait_for:
+        port: 22
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+        search_regex: OpenSSH
+        delay: 10
+      connection: local
+
+    - name: Create www directory
+      become: true
+      file:
+        path: "{{ apache_dir }}"
+        state: directory
+        mode: 0777
+
+    - name: create web directory
+      become: true
+      file:
+        path: "{{ www_dir }}"
+        owner: www-data
+        state: directory
+        mode: 0777
+
+    - name: Create home/.docker directory
+      become: false
+      file:
+        path: "$HOME/.docker"
+        state: directory
+        mode: 0700
+
+    - name: Copy initial compose
+      become: true
+      ansible.builtin.copy:
+        src: "{{ src_dir }}/docker-compose.yml"
+        dest: "{{ apache_dir }}/docker-compose.yml"
+
+
+    - name: Copy docker build
+      become: true
+      ansible.builtin.copy:
+        src: "{{ src_dir }}/Dockerfile"
+        dest: "{{ apache_dir }}/Dockerfile"
+
+    - name: Copy environment var file
+      become: true
+      ansible.builtin.copy:
+        src: "{{ src_dir }}/.env"
+        dest: "{{ apache_dir }}/.env"
+        mode: 0644
+
+    - name: Update mysql connection info
+      become: true
+      shell: |
+        sed -i 's/=DB_USER/={{ db_user }}/g' "{{ apache_dir }}"/.env
+        sed -i 's/=DB_PASS/={{ db_pass }}/g' "{{ apache_dir }}"/.env
+        sed -i 's/=DB_HOST/={{ db_host }}/g' "{{ apache_dir }}"/.env
+        sed -i 's/=DB_NAME/={{ db_name }}/g' "{{ apache_dir }}"/.env
+
+    - name: Run docker compose
+      become: false
+      community.docker.docker_compose:
+        project_src: "{{ apache_dir }}"
+        files: 
+          - docker-compose.yml
+      register: output
+
+    - name: Show initial results
+      ansible.builtin.debug:
+        var: output
+
+    - name: Verify that the web service is running
+      become: true
+      ansible.builtin.assert:
+        that:
+          - "output.services.web.rwi_wp.state.running"
+      register: result
+    - debug:
+        msg: "{{ result }}"

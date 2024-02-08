@@ -24,7 +24,8 @@ This deployment will create everything in AWS.
 
 
 ## Running the deployment
-```$ ansible-playbook -i inventory.yml playbook/deployment_install.yml
+```
+ansible-playbook -i inventory.yml playbook/deployment_install.yml
 ```
   - which will import tasks from:
       tasks/aws_iam.yml
