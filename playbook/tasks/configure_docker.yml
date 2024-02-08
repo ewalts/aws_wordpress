@@ -1,0 +1,68 @@
+    - name: Stop docker service
+      become: true
+      shell: |
+        systemctl stop docker.service
+
+    - name: Stop docker socket
+      become: true
+      shell: |
+        systemctl stop docker.socket
+
+    - name: Disable docker service
+      become: true
+      shell: |
+        systemctl disable docker.service
+
+    - name: Stop container service
+      become: true
+      shell: |
+        systemctl stop containerd
+
+    - name: Reboot the host (Docker Configuration)
+      become: true
+      ansible.builtin.reboot:
+
+#    - name: Wait for SSH (Docker Configuration)
+#      ansible.builtin.wait_for:
+#        port: 22
+#        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+#        search_regex: OpenSSH
+#        delay: 10
+#      connection: local
+
+    - name: Configure docker data location
+      become: true
+      lineinfile:
+        path: /lib/systemd/system/docker.service
+        state: present
+        regexp: 'ExecStart=/usr/bin/dockerd '
+        line: "ExecStart=/usr/bin/dockerd --data-root={{ docker_lib }}  -H fd:// --containerd=/run/containerd/containerd.sock"
+
+    - name: New Docker folder exists
+      become: true
+      shell: |
+        mkdir -p "{{ docker_lib }}"
+        chmod 0775 "{{ docker_lib }}"
+
+    - name: sync docker files
+      become: true
+      shell:
+        rsync -aqxP /var/lib/docker/ "{{ docker_lib }}" 
+
+    - name: Enable docker service
+      become: true
+      shell: |
+        systemctl enable docker.service
+
+    - name: Run deamon reload
+      become: true
+      shell: |
+        systemctl daemon-reload
+
+    - name: Start docker service
+      become: true
+      shell: |
+        systemctl start docker
+      register: start_docker
+    - debug:
+        msg: "{{ start_docker }}"

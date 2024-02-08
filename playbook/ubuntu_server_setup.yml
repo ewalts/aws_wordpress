@@ -1,0 +1,177 @@
+#######################################################>
+###>  Ubuntu basic settings
+#######################################################>
+- name: Initial server setup tasks
+  hosts: ec2hosts
+  remote_user: ubuntu
+  gather_facts: false
+#  vars_prompt:   ####  This will not be used for cloud instances
+#    - name: password
+#      prompt: Please provide creation password for "{{ my_user }}".
+  vars_files:
+    - vars/server_setup_vars.yml
+    - vars/deployment_vars.yml
+
+  tasks:
+    - name: Wait for SSH
+      ansible.builtin.wait_for:
+        port: 22
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+        search_regex: OpenSSH
+        delay: 10
+      connection: local
+ 
+    - name: Update apt cache
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Update installed packages
+      become: true
+      ansible.builtin.apt:
+        name: "*"
+        state: latest
+
+    - name: Run task package1
+      import_tasks:
+        file: tasks/package1.yml
+
+    - name: Define prefered timezone
+      become: true
+      community.general.timezone:
+        name: "{{ my_timezone }}"
+
+    - name: SSH group
+      become: true
+      ansible.builtin.group:
+        name: "{{ ssh_group }}"
+        state: present
+
+    - name: docker group
+      become: true
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: sudo group
+      become: true
+      ansible.builtin.group:
+        name: sudo
+        state: present
+
+    - name: www-data group
+      become: true
+      ansible.builtin.group:
+        name: www-data
+        state: present
+
+    - name: Create a user with sudo privileges
+      become: true
+      ansible.builtin.user:
+        name: "{{ my_user }}"
+        state: present
+        groups: 
+          - sudo
+          - adm
+          - docker
+          - www-data
+          - "{{ ssh_group }}"
+        append: true
+        create_home: true
+        shell: /bin/bash
+        password: "{{ lookup('ansible.builtin.env', 'MY_PASS') }}"
+        update_password: on_create
+
+    - name: Add ubuntu user to the allowed group
+      become: true
+      ansible.builtin.shell:
+        usermod -a -G "{{ ssh_group }}" ubuntu
+
+    - name: Set authorized key for remote user
+      become: true
+      ansible.posix.authorized_key:
+        user: "{{ my_user }}"
+        state: present
+        key: "{{ copy_local_key }}"
+      ignore_errors: true
+
+    - name: Grant SUDO access
+      become: true
+      ansible.builtin.shell: |
+        echo '{{ my_user }} ALL=(ALL) NOPASSWD:ALL'  >> '/tmp/01-{{ my_user }}-full'
+        cp -f '/tmp/01-{{ my_user }}-full'  '/etc/sudoers.d/01-{{ my_user }}-full'
+
+    - name: Disable remote login for root
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: '^PermitRootLogin yes'
+        line: 'PermitRootLogin no'
+
+    - name: Configure SSH AllowGroups
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        line: 'AllowGroups "{{ ssh_group }}"'
+        insertafter: '#VersionAddendum none'
+
+    - name: UFW - Allow ssh connections
+      become: true
+      community.general.ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+        direction: in
+
+    - name: UFW - Allow http connections
+      become: true
+      community.general.ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+        direction: in
+    - name: UFW - Allow https connections
+      become: true
+      community.general.ufw:
+        rule: allow
+        port: 443
+        proto: tcp
+        direction: in
+
+    - name: UFW - Allow MySQL connections
+      become: true
+      community.general.ufw:
+        rule: allow
+        port: 3306
+        proto: tcp
+        direction: in
+
+
+    - name: Brute-force attempt protection for SSH
+      become: true
+      community.general.ufw:
+        rule: limit
+        port: 22
+        proto: tcp
+
+    - name: UFW - Deny other incoming traffic and enable UFW
+      become: true
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+
+    - name: Configure docker
+      import_tasks:
+        file: tasks/configure_docker.yml
+
+    - name: Remove excess packages no longer needed
+      become: true
+      ansible.builtin.apt:
+        autoremove: yes
+
+    - name: Reboot the host
+      become: true
+      ansible.builtin.reboot:
