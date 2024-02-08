@@ -1,0 +1,137 @@
+---
+
+- name: AWS Wordpress Deployment
+  vars_files:
+    - vars/deployment_vars.yml
+    - vars/aws_template_vars.yml
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+    - name: Require Subnet
+      import_tasks:
+        file: tasks/create_subnet.yml
+
+    - name: Require Security Group
+      import_tasks:
+        file: tasks/aws_security_group.yml
+
+    - name: Check role info
+      community.aws.iam_role:
+        name: "{{ iam_role }}"
+      register: role_result
+      ignore_errors: true
+
+    - name: Create IAM assume Role
+      community.aws.iam_role:
+        name: "{{ iam_role }}"
+        assume_role_policy_document: "{{ lookup('file','../scripts/assume_iam_role.json') }}"
+        description: Role for EC2 Instances
+        state: present
+        tags:
+          environment: "{{ new_env }}"
+      register: iam_role_info
+    - debug:
+        msg: "{{ iam_role_info }}"
+
+    - name: Shell timestamp for unique profile name
+      shell: |
+        echo $(date '+%Y%m%d-%H%M%s')
+      register: time_stamp
+
+
+    - name: WP Instance Profile - Create
+      ansible.builtin.command: aws iam create-instance-profile
+        --instance-profile-name "{{ wp_instance_profile }}-{{ time_stamp.stdout }}"
+      ignore_errors: true
+
+    - name: Create Policy
+      amazon.aws.iam_policy:
+        iam_type: role
+        iam_name: "{{ iam_role }}"
+        policy_name: "{{ policy_name }}"
+        policy_json: "{{ lookup('file','../scripts/023-rwi-wp.json') }}"
+        state: present
+      register: iam_policy_info
+    - debug:
+        msg: "{{ iam_policy_info }}"
+
+    - name: Attach Role to Apache Instance Profile
+      ansible.builtin.command: aws iam add-role-to-instance-profile
+        --role-name "{{ iam_role }}"
+        --instance-profile-name "{{ wp_instance_profile }}-{{ time_stamp.stdout }}"
+      ignore_errors: true
+
+    - name: Wordpress Instance
+      amazon.aws.ec2_instance:
+        name: "{{ apache_inst_name }}"
+        key_name: "{{ key_name }}"
+        iam_instance_profile: "{{ wp_instance_profile }}-{{ time_stamp.stdout }}"
+        vpc_subnet_id: "{{ subnet_info['subnet']['id'] }}"
+        instance_type: "{{ web_ins_type }}"
+        security_groups: 
+          - "{{ sg }}"
+          - "{{ db_sg }}"
+        network:
+          assign_public_ip: true
+        image_id: "{{ ubu_22_10g }}"
+        tags:
+          Name: "{{ web_tags_name }}"
+          environment: "{{ new_env }}"
+          product: "{{ product_tag }}"
+          purpose: "{{ wp_host_purpose }}"
+        state: running
+        wait: true
+      register: ec2
+    - debug:
+        msg: "{{ ec2 }}"
+
+    - name: Add MySQL Data Disk
+      import_tasks:
+        file: tasks/create_volume.yml
+
+    - name: Register instance in ad-hoc groups
+      add_host: 
+        hostname: "{{ ec2['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}" 
+        groups: 
+          - ec2hosts
+          - apache
+          - mysql
+
+    - name: Create DNS A record for web
+      amazon.aws.route53:
+        state: present
+        overwrite: true
+        zone: "{{ dns_zone }}"
+        record: "{{ web_host_fqdn }}"
+        type: A
+        ttl: 7200
+        value: "{{ ec2['instances'][0]['network_interfaces'][0]['association']['public_ip'] }}"
+      ignore_errors: true
+      register: dns_web
+    - debug:
+        msg: "{{ dns_web }}"
+
+    - name: Update deployment inventory.yml
+      shell: |
+        /usr/bin/php /home/eric/dep-1/rwi-wp/scripts/update_inventory.php "{{ groups }}"
+      ignore_errors: true
+      register: php_output
+    - debug:
+        msg: "{{ php_output }}"
+
+    - name: Deployment Vars Log task
+      import_tasks:
+        file: tasks/record_deployment_vars.yml 
+
+- name: Basic ubuntu server setup
+  ansible.builtin.import_playbook: ubuntu_server_setup.yml
+
+- name: MySQL setup
+  ansible.builtin.import_playbook: install_mysql.yml
+
+- name: WP container setup
+  ansible.builtin.import_playbook: wordpress_compose.yml
+
+
+

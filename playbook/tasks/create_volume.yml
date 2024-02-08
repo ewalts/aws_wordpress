@@ -1,0 +1,51 @@
+    ###>  pull instance information for matching instances, 
+    - name: Pull MysQL InstanceID
+      amazon.aws.ec2_instance_info:
+        region: "{{ region }}"
+        filters:
+          instance-state-name: [ "running" ]
+          "tag:environment": "{{ new_env }}"
+          "tag:product": "{{ product_tag }}"
+          "tag:purpose": "{{ wp_host_purpose }}"
+      ignore_errors: true
+      register: instance_info
+      
+#    - name: Check for disk
+#      ec2_vol_info:
+#        filters:
+#          "tag:Name": "{{ data_vol }}"
+#          "tag:environment": "{{ new_env }}"
+#          "tag:product": "{{ product_tag }}"
+#      register: data_vol_info
+#    - debug:
+#        msg: "{{ data_vol_info }}"
+
+#      when: ( data_vol_info.volumes[0].status != 'available' ) == true
+
+    - name: Show instance information
+      ansible.builtin.debug:
+        var: instance_info['instances'][0]['instance_id'] 
+      ignore_errors: true
+
+    - name: Create Data volume 
+      amazon.aws.ec2_vol:
+        instance: "{{ instance_info['instances'][0]['instance_id'] }}"
+        volume_size: 5
+        volume_type: standard
+        name: "{{ data_vol }}"
+        device_name: /dev/xvdd
+        tags:
+          environment: "{{ new_env }}"
+          product: "{{ product_tag }}"
+      register: ec2_vol
+    - debug:
+        msg: "{{ ec2_vol }}"
+
+    - name: Deployment Record Update MySQL Data Volume
+      lineinfile:
+        state: present
+        create: true
+        path: "{{ deployment_log }}"
+        regexp: 'mysql_data_vol:'
+        line: "mysql_data_vol: {{ ec2_vol['volume_id'] }}"
+

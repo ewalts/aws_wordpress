@@ -1,0 +1,117 @@
+- name: Wordpress - RWI Tech
+    - name: Require Subnet
+      - name: Create Node communication subnet
+    - name: Require Security Group
+      - name: Create node communication security group
+      - name: Show security group sg instance_id
+      - name: Create node communication security group
+      - name: Deployment Record Update - Security Group Details
+
+    - name: Check role info
+    - name: Create IAM assume Role
+    - name: Shell timestamp for unique profile name
+    - name: WP Instance Profile - Create
+    - name: Create Policy
+    - name: Attach Role to Apache Instance Profile
+    - name: Wordpress Instance
+    - name: Add MySQL Data Disk
+    - name: Register instance in ad-hoc groups
+    - name: Create DNS A record for web
+    - name: Update deployment inventory.yml
+    - name: Deployment Vars Log task
+- name: Basic ubuntu server setup
+    - name: Wait for SSH
+    - name: Update apt cache
+    - name: Update installed packages
+    - name: Run task package
+	Import tasks/package1.yml
+      - name: Install zip
+      - name: Install pip
+      - name: Install curl
+      - name: Install NFS server
+      - name: Install NFS client
+      - name: Make sure NTP service exists
+      - name: Make sure NTP service is running
+      - name: Install boto
+      - name: Check if awscli installed
+      - name: Install awscli
+      - name: Remove excess packages no longer needed
+      - name: Docker is present
+      - name: Docker.io is present
+      - name: Docker-compose is present
+      - name: Python-Docker is present
+      #- name: Install AWS ECR Credential Helper
+
+    - name: Define prefered timezone
+    - name: SSH group
+    - name: docker group
+    - name: sudo group
+    - name: www-data group
+    - name: Create a user with sudo privileges
+    - name: Add ubuntu user to the allowed group
+    - name: Set authorized key for remote user
+    - name: Grant SUDO access
+    - name: Disable remote login for root
+    - name: Configure SSH AllowGroups
+    - name: UFW - Allow ssh connections
+    - name: UFW - Allow http connections
+    - name: UFW - Allow https connections
+    - name: UFW - Allow MySQL connections
+    - name: Brute-force attempt protection for SSH
+    - name: UFW - Deny other incoming traffic and enable UFW
+    - name: Configure docker
+      - name: Stop docker service
+      - name: Stop docker socket
+      - name: Disable docker service
+      - name: Stop container service
+      - name: Reboot the host (Docker Configuration)
+      #- name: Wait for SSH (Docker Configuration)
+      - name: Configure docker data location
+      - name: New Docker folder exists
+      - name: sync docker files
+      - name: Enable docker service
+      - name: Run deamon reload
+      - name: Start docker service
+    - name: Remove excess packages no longer needed
+    - name: Reboot the host
+
+- name: MySQL setup
+    - name: MySQL Server present
+    - name: pymysql present
+    - name: Check disk
+    - name: Early MySQL check before mount task
+    - name: Mount data0
+    - name: Wait for MySQL before installing
+    - name: Count tables in "{{ db_name }}"
+    - name: Configure MySQL task
+      - name: Stop the MySQL Service
+      - name: Disable the MySQL Service
+      - name: Wait for MySQL before config mysqld.cnf
+      - name: Modify mysqld.cnf Define the MySQL bind address External Connections
+      - name: Modify mysqld.cnf defining the MySQL bind address to allow external connections
+      - name: Modify mysqld.cnf defining the new MySQL data directory
+      - name: Define SSL for encryption intransit
+      - name: Update the apparmor policy
+      - name: Set filesystem permissions and migrade system database
+      - name: Wait for SSH
+      - name: Enable mysql.service
+
+    - name: Reboot MySQL hosts
+    - name: Wait for SSH
+    - name: Wait for MySQL before create database
+    #- name: Copy database file
+    - name: Create database
+    - name: Create db user
+
+- name: WP container setup
+    - name: Wait for ssh
+    - name: Create www directory
+    - name: create web directory
+    - name: Create home/.docker directory
+    - name: Copy initial compose
+    - name: Copy docker build
+    - name: Copy environment var file
+    - name: Update mysql connection info
+    - name: Run docker compose
+    - name: Show initial results
+    - name: Verify that the web service is running

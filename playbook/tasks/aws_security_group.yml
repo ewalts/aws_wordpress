@@ -1,0 +1,56 @@
+###> Security Group for LAMP Deployment 
+###> Apache Container/Instance & MySQL Instance
+
+    - name: Create node communication security group
+      amazon.aws.ec2_security_group:
+        name: "{{ sg }}"
+        description: communication for kubernetes hosts
+        vpc_id: "{{ vpc_id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 443
+              - 80
+              - 22
+            cidr_ip: 
+              - "{{ ncom_net_cidr }}"
+              - "{{ my_ip }}"
+      register: sg_info 
+    - debug:
+        msg: "{{ sg_info }}"
+
+    - name: Show security group sg instance_id
+      ansible.builtin.debug:
+        var: sg_info['group_id'] 
+
+    - name: Create node communication security group
+      amazon.aws.ec2_security_group:
+        name: "{{ db_sg }}"
+        description: communication for mysqldb hosts
+        vpc_id: "{{ vpc_id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 3306
+              - 22
+            cidr_ip: 
+              - "{{ ncom_net_cidr }}"
+              - "{{ my_ip }}"
+              - "{{ container_cidr_1 }}"
+              - "{{ container_cidr_2 }}"
+      register: db_sg_info
+    - debug:
+        msg: "{{ db_sg_info }}"
+
+    - name: Deployment Record Update - Security Group Details
+      lineinfile:
+        state: present
+        create: true
+        path: "{{ deployment_log }}"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: 'web_sg_id:', line: "web_sg_id: {{ sg_info['group_id'] }}" }
+        - { regexp: 'db_sg_id:', line: "db_sg_id: {{ db_sg_info['group_id'] }}" }
+
+

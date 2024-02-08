@@ -1,0 +1,19 @@
+###> docker-compose.yml for rwi wordpress site
+
+---
+services:
+  web:
+    image: wordpress
+    restart: always
+    container_name: rwi_wp
+    ports:
+      - "80:80"
+      - "443:443"
+    environment: 
+      - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
+      - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}
+      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
+      - WORDPRESS_DB_NAME=${WORDPRESS_DB_DATABASE}
+    volumes:
+      - /data0/docker/wordpress/www/html:/var/www/html
+

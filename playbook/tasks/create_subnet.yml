@@ -1,0 +1,14 @@
+    - name: Create Node communication subnet
+      amazon.aws.ec2_vpc_subnet:
+        state: present
+        vpc_id: "{{ vpc_id }}"
+        cidr: "{{ ncom_net_cidr }}"
+        tags:
+          net_role: "{{ net_role }}"
+          environment: "{{ new_env }}"
+          product: "{{ product_tag }}"
+          Name: "{{ subnet_tag_name }}"
+      register: subnet_info
+    - debug:
+        msg: "{{ subnet_info }}"
+
