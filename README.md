@@ -7,7 +7,7 @@ Wordpress-Docker/MysQL
 ## Ansible playbook for docker and mysql server deployment
 - Ubuntu instance 22.04
 - MySQL 8.x
-- Docker 6.23
+- Docker 24.0.5
 
 ## Latest version 2.0.4 
 This version of rewbin wordpress deployment uses one instance. Wordpress is containerized with Docker, MySQL runs natively.
