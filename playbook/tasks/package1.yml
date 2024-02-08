@@ -1,0 +1,97 @@
+    - name: Install zip
+      become: true
+      ansible.builtin.apt:
+        name: zip
+        state: present
+
+    - name: Install pip
+      become: true
+      ansible.builtin.apt:
+        name: pip
+        state: present
+
+    - name: Install curl
+      become: true
+      ansible.builtin.apt:
+        name: curl
+        state: present
+
+    - name: Install NFS server
+      become: true
+      ansible.builtin.apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Install NFS client
+      become: true
+      ansible.builtin.apt:
+        name: nfs-common
+        state: present
+
+    - name: Make sure NTP service exists
+      become: true
+      ansible.builtin.apt:
+        name: systemd-timesyncd
+        state: present
+
+    - name: Make sure NTP service is running
+      become: true
+      ansible.builtin.systemd:
+        state: started
+        name: systemd-timesyncd
+
+    - name: Install boto 
+      become: true
+      ansible.builtin.shell: |
+        pip install botocore
+        pip install boto3
+
+    - name: Check if awscli installed
+      shell: |
+        aws --version
+      register: aws_version
+      ignore_errors: true
+
+    - name: Install awscli
+      become: true
+      shell: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+      when:  aws_version.stdout.find('aws-cli') == -1
+      ignore_errors: true
+
+    - name: Remove excess packages no longer needed
+      become: true
+      ansible.builtin.apt:
+        autoremove: yes
+
+    - name: Docker is present
+      become: true
+      ansible.builtin.package:
+        name: docker
+        state: present
+
+    - name: Docker.io is present
+      become: true
+      ansible.builtin.package:
+        name: docker.io
+        state: present
+
+    - name: Docker-compose is present
+      become: true
+      ansible.builtin.package:
+        name: docker-compose
+        state: present
+
+    - name: Python-Docker is present
+      become: true
+      ansible.builtin.package:
+        name: python3-docker
+        state: present
+
+#    - name: Install AWS ECR Credential Helper
+#      become: true
+#      ansible.builtin.apt:
+#        name: amazon-ecr-credential-helper
+#        state: present
