@@ -106,7 +106,7 @@
     - name: Create db user
       shell: |
         echo "CREATE USER '{{ db_user }}'@'{{ ip_range }}' IDENTIFIED BY '{{ db_pass }}';" | sudo mysql
-        echo "GRANT ALL PRIVILEGES on {{ db_name }}.* TO {{ db_user }}@'%';" | sudo mysql
+        echo "GRANT ALL PRIVILEGES on {{ db_name }}.* TO {{ db_user }}@'{{ ip_range }}';" | sudo mysql
       register: new_db_user
 
     - debug:
